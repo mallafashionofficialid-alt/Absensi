@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F2A44">
+<title>Absensi Online</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --navy:#1F2A44; --navy2:#2C3B5E; --gold:#C9A227; --bg:#F4F5F9; --ok:#1E8E5A; --bad:#C0392B; --warn:#D68910; --mut:#6B7280; --card:#fff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; background:var(--bg); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:#1b2030; }
+  .wrap { max-width:480px; margin:0 auto; min-height:100vh; padding-bottom:40px; }
+  header.top { background:var(--navy); color:#fff; padding:calc(14px + env(safe-area-inset-top)) 18px 54px; border-radius:0 0 22px 22px; }
+  header.top .row { display:flex; justify-content:space-between; align-items:center; }
+  header.top small { color:#cfd6e6; }
+  header.top h2 { margin:6px 0 0; font-size:20px; }
+  .gold { color:var(--gold); }
+  .card { background:var(--card); border-radius:16px; padding:16px; margin:12px 14px; box-shadow:0 2px 10px rgba(20,30,60,.07); }
+  .card.float { margin-top:-40px; }
+  .clock { font-size:42px; font-weight:700; letter-spacing:1px; text-align:center; font-variant-numeric:tabular-nums; }
+  .date { text-align:center; color:var(--mut); margin-top:2px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  .stat { background:#F6F7FB; border-radius:12px; padding:10px; text-align:center; }
+  .stat b { display:block; font-size:20px; margin-top:2px; }
+  .stat span { font-size:12px; color:var(--mut); }
+  button { font:inherit; border:0; cursor:pointer; }
+  .btn { width:100%; padding:15px; border-radius:14px; font-weight:700; font-size:16px; background:var(--navy); color:#fff; }
+  .btn.gold { background:var(--gold); color:#1b2030; }
+  .btn.ok { background:var(--ok); }
+  .btn.red { background:var(--bad); }
+  .btn.light { background:#E9ECF4; color:var(--navy); }
+  .btn.small { padding:9px 12px; font-size:14px; width:auto; border-radius:10px; }
+  .btn:disabled { opacity:.45; }
+  .big { padding:22px; font-size:19px; border-radius:18px; letter-spacing:.5px; }
+  input,select { width:100%; padding:13px 14px; border:1.5px solid #D8DCE6; border-radius:12px; font:inherit; background:#fff; margin:6px 0 12px; }
+  input:focus,select:focus { outline:none; border-color:var(--navy); }
+  label { font-size:13px; color:var(--mut); font-weight:600; }
+  .muted { color:var(--mut); font-size:13px; }
+  .pill { display:inline-block; padding:4px 10px; border-radius:99px; font-size:12px; font-weight:700; }
+  .pill.ok { background:#DDF3E8; color:var(--ok); } .pill.bad { background:#F9E0DD; color:var(--bad); } .pill.warn { background:#FCEFD6; color:var(--warn); } .pill.mut { background:#ECEEF3; color:var(--mut); }
+  .loc { display:flex; gap:12px; align-items:center; }
+  .dot { width:12px; height:12px; border-radius:50%; background:#bbb; flex:none; }
+  .dot.ok { background:var(--ok); box-shadow:0 0 0 5px #DDF3E8; } .dot.bad { background:var(--bad); box-shadow:0 0 0 5px #F9E0DD; } .dot.wait { background:var(--warn); animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
+  .map { height:200px; border-radius:12px; margin-top:12px; z-index:0; }
+  .map.tall { height:320px; }
+  .hidden { display:none !important; }
+  .center { text-align:center; }
+  .login-hero { background:var(--navy); color:#fff; padding:60px 24px 70px; text-align:center; border-radius:0 0 28px 28px; }
+  .login-hero .logo { width:76px; height:76px; border-radius:20px; background:var(--gold); color:var(--navy); font-size:38px; font-weight:800; display:grid; place-items:center; margin:0 auto 14px; }
+  .list-item { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #EEF0F5; gap:10px; }
+  .list-item:last-child { border-bottom:0; }
+  .tabs { display:flex; gap:6px; margin:-38px 14px 0; position:relative; }
+  .tabs button { flex:1; padding:11px 6px; border-radius:12px; background:#fff; color:var(--navy); font-weight:700; font-size:14px; box-shadow:0 2px 10px rgba(20,30,60,.08); }
+  .tabs button.on { background:var(--gold); }
+  .toast { position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:#1b2030; color:#fff; padding:12px 18px; border-radius:12px; z-index:9999; max-width:92%; font-size:14px; box-shadow:0 6px 24px rgba(0,0,0,.25); }
+  .toast.bad { background:var(--bad); } .toast.ok { background:var(--ok); }
+  .overlay { position:fixed; inset:0; background:rgba(15,20,35,.6); z-index:5000; display:grid; place-items:center; padding:20px; }
+  .spinner { width:46px; height:46px; border:5px solid #fff3; border-top-color:var(--gold); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .cam { position:fixed; inset:0; background:#000; z-index:6000; display:flex; flex-direction:column; }
+  .cam video { width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+  .cam .ring { position:absolute; left:50%; top:42%; width:68vw; max-width:300px; aspect-ratio:3/4; transform:translate(-50%,-50%); border:4px solid #fff8; border-radius:50%; transition:border-color .2s; }
+  .cam .ring.ok { border-color:var(--ok); } .cam .ring.warn { border-color:var(--gold); }
+  .cam .msg { position:absolute; left:0; right:0; top:calc(18px + env(safe-area-inset-top)); text-align:center; color:#fff; font-weight:700; font-size:18px; text-shadow:0 2px 8px #000; padding:0 20px; }
+  .cam .bar { position:absolute; left:16px; right:16px; bottom:calc(24px + env(safe-area-inset-bottom)); display:flex; gap:10px; }
+  .success { text-align:center; padding:30px 10px; }
+  .check { width:90px; height:90px; border-radius:50%; background:var(--ok); color:#fff; font-size:52px; display:grid; place-items:center; margin:0 auto 16px; animation:pop .4s ease; }
+  @keyframes pop { from { transform:scale(.3); opacity:0; } }
+  .modal { background:#fff; border-radius:18px; padding:20px; width:100%; max-width:380px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td,th { padding:8px 4px; border-bottom:1px solid #EEF0F5; text-align:left; }
+  th { color:var(--mut); font-size:12px; }
+  a { color:var(--navy); }
+  .range { display:flex; gap:10px; align-items:center; }
+  .range input[type=range] { flex:1; margin:0; padding:0; border:0; }
+  .range input[type=number] { width:90px; margin:0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ SETUP ============ -->
+  <section id="scr-setup" class="hidden">
+    <div class="login-hero"><div class="logo">⚙️</div><h2>Aplikasi belum terhubung</h2></div>
+    <div class="card">
+      <p>Buka file <b>index.html</b>, cari baris <code>const API_URL</code>, lalu tempel URL Web App dari Google Apps Script. Lihat PANDUAN.</p>
+    </div>
+  </section>
+
+  <!-- ============ LOGIN ============ -->
+  <section id="scr-login" class="hidden">
+    <div class="login-hero">
+      <div class="logo">✓</div>
+      <h2 style="margin:0">Absensi Online</h2>
+      <div class="muted" style="color:#cfd6e6" id="login-perusahaan">&nbsp;</div>
+    </div>
+    <div class="card float">
+      <label>NIK</label>
+      <input id="in-nik" inputmode="numeric" autocomplete="username" placeholder="Nomor Induk Karyawan">
+      <label>PIN</label>
+      <input id="in-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN">
+      <button class="btn" onclick="App.login()">Masuk</button>
+    </div>
+    <p class="center"><a href="#" onclick="App.show('admin-login');return false" class="muted">Masuk sebagai Admin</a></p>
+  </section>
+
+  <!-- ============ HOME ============ -->
+  <section id="scr-home" class="hidden">
+    <header class="top">
+      <div class="row">
+        <div><small id="h-perusahaan"></small><h2 id="h-nama">-</h2><small id="h-jabatan"></small></div>
+        <button class="btn small light" onclick="App.logout()">Keluar</button>
+      </div>
+    </header>
+    <div class="card float">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="date" id="today"></div>
+      <div class="muted center" id="jadwal" style="margin-top:4px"></div>
+      <div class="grid2">
+        <div class="stat"><span>Masuk</span><b id="st-masuk">--:--</b></div>
+        <div class="stat"><span>Pulang</span><b id="st-pulang">--:--</b></div>
+      </div>
+      <div class="center" id="st-ket" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" id="card-reg">
+      <b>Daftarkan biometrik Anda</b>
+      <p class="muted" style="margin:6px 0 12px">Dilakukan sekali di HP Anda sendiri sebelum bisa absen.</p>
+      <button class="btn gold" id="btn-reg-wajah" onclick="App.daftarWajah()" style="margin-bottom:8px">📷 Daftarkan Wajah</button>
+      <button class="btn gold" id="btn-reg-jari" onclick="App.daftarSidikJari()">👆 Daftarkan Sidik Jari / Face ID</button>
+      <p class="muted hidden" id="reg-jari-na" style="margin-top:8px">HP/browser ini tidak mendukung sidik jari untuk web. Gunakan Chrome terbaru (Android) atau Safari (iPhone) dan pastikan kunci layar sidik jari/Face ID sudah aktif.</p>
+    </div>
+
+    <div class="card">
+      <div class="loc">
+        <div class="dot wait" id="loc-dot"></div>
+        <div style="flex:1"><b id="loc-title">Mencari lokasi…</b><div class="muted" id="loc-sub">Aktifkan GPS / izin lokasi</div></div>
+      </div>
+      <div id="map-home" class="map"></div>
+    </div>
+
+    <div style="margin:14px">
+      <button class="btn big" id="btn-absen" onclick="App.absen()" disabled>Memuat…</button>
+      <button class="btn light" style="margin-top:10px" onclick="App.riwayat()">📅 Riwayat & Rekap Saya</button>
+    </div>
+  </section>
+
+  <!-- ============ SUKSES ============ -->
+  <section id="scr-sukses" class="hidden">
+    <div class="card" style="margin-top:40px">
+      <div class="success">
+        <div class="check">✓</div>
+        <h2 id="sk-judul" style="margin:0 0 6px">Berhasil</h2>
+        <div class="muted" id="sk-detail"></div>
+      </div>
+      <button class="btn" onclick="App.home()">Selesai</button>
+    </div>
+  </section>
+
+  <!-- ============ RIWAYAT ============ -->
+  <section id="scr-riwayat" class="hidden">
+    <header class="top"><div class="row"><h2>Riwayat Absensi</h2><button class="btn small light" onclick="App.home()">Kembali</button></div><small id="rw-periode"></small></header>
+    <div class="card float">
+      <div class="grid2" style="grid-template-columns:1fr 1fr 1fr;margin:0">
+        <div class="stat"><span>Hadir</span><b id="rw-hadir">0</b></div>
+        <div class="stat"><span>Terlambat</span><b id="rw-telat">0</b></div>
+        <div class="stat"><span>Lembur</span><b id="rw-lembur">0</b></div>
+      </div>
+    </div>
+    <div class="card"><table><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Ket.</th></tr></thead><tbody id="rw-body"></tbody></table></div>
+  </section>
+
+  <!-- ============ ADMIN LOGIN ============ -->
+  <section id="scr-admin-login" class="hidden">
+    <div class="login-hero"><div class="logo">🛡️</div><h2 style="margin:0">Panel Admin</h2></div>
+    <div class="card float">
+      <label>PIN Admin</label>
+      <input id="in-admin-pin" type="password" inputmode="numeric">
+      <button class="btn" onclick="App.adminLogin()">Masuk</button>
+    </div>
+    <p class="center"><a href="#" onclick="App.start();return false" class="muted">← Kembali</a></p>
+  </section>
+
+  <!-- ============ ADMIN ============ -->
+  <section id="scr-admin" class="hidden">
+    <header class="top"><div class="row"><div><small id="ad-perusahaan"></small><h2>Panel Admin</h2></div><button class="btn small light" onclick="App.adminLogout()">Keluar</button></div></header>
+    <div class="tabs">
+      <button class="on" data-tab="lokasi" onclick="App.tab('lokasi')">📍 Lokasi</button>
+      <button data-tab="karyawan" onclick="App.tab('karyawan')">👥 Karyawan</button>
+      <button data-tab="hari" onclick="App.tab('hari')">🕘 Hari Ini</button>
+    </div>
+
+    <div id="tab-lokasi">
+      <div class="card">
+        <b id="lk-judul">Tambah Lokasi Absen</b>
+        <p class="muted" style="margin:4px 0 0">Ketuk peta untuk menentukan titik, atau pakai lokasi Anda sekarang.</p>
+        <div id="map-admin" class="map tall"></div>
+        <button class="btn light" style="margin:10px 0" onclick="App.pakaiLokasiSaya()">📍 Pakai lokasi saya sekarang</button>
+        <label>Atau tempel koordinat (dari Google Maps)</label>
+        <input id="lk-koord" placeholder="-6.8875, 107.5367" onchange="App.tempelKoordinat()">
+        <label>Nama lokasi</label>
+        <input id="lk-nama" placeholder="mis. Kantor Melong / Gudang / Butik">
+        <label>Radius jangkauan (meter)</label>
+        <div class="range"><input type="range" id="lk-radius-r" min="10" max="1000" step="5" value="100" oninput="App.setRadius(this.value)"><input type="number" id="lk-radius" min="10" max="5000" value="100" oninput="App.setRadius(this.value)"></div>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="lk-aktif" checked style="width:auto;margin:0"> Lokasi aktif</label>
+        <input type="hidden" id="lk-id">
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn" onclick="App.simpanLokasi()">Simpan Lokasi</button>
+          <button class="btn light hidden" id="lk-batal" style="width:auto" onclick="App.resetFormLokasi()">Batal</button>
+        </div>
+      </div>
+      <div class="card"><b>Daftar Lokasi</b><div id="lk-list"></div></div>
+    </div>
+
+    <div id="tab-karyawan" class="hidden">
+      <div class="card">
+        <b>⏰ Jam Shift</b>
+        <p class="muted" style="margin:4px 0 10px">Atur jam masuk & pulang tiap shift. Lembur dihitung setelah jam pulang shift masing-masing.</p>
+        <div id="sf-body"></div>
+        <button class="btn" style="margin-top:12px" onclick="App.simpanShift()">Simpan Jam Shift</button>
+      </div>
+      <div class="card"><p class="muted" style="margin-top:0">Tambah/ubah karyawan, gaji & PIN di sheet <b>Karyawan</b>. Di sini Anda atur <b>shift</b>, lokasi absen, dan reset biometrik bila karyawan ganti HP. Untuk shift bergilir per tanggal, isi sheet <b>Jadwal Shift</b>.</p><div id="kr-list"></div></div>
+    </div>
+
+    <div id="tab-hari" class="hidden">
+      <div class="card"><table><thead><tr><th>Nama</th><th>Masuk</th><th>Pulang</th><th>Telat</th></tr></thead><tbody id="hr-body"></tbody></table><div id="hr-kosong" class="muted center hidden" style="padding:16px">Belum ada absen hari ini</div></div>
+    </div>
+  </section>
+</div>
+
+<!-- Kamera wajah -->
+<div class="cam hidden" id="cam">
+  <video id="cam-video" playsinline autoplay muted></video>
+  <div class="ring" id="cam-ring"></div>
+  <div class="msg" id="cam-msg">Menyiapkan kamera…</div>
+  <div class="bar"><button class="btn light" onclick="Face.cancel()">Batal</button></div>
+</div>
+
+<div class="overlay hidden" id="loading"><div class="center" style="color:#fff"><div class="spinner"></div><p id="loading-msg" style="margin-top:14px">Memproses…</p></div></div>
+<div class="overlay hidden" id="chooser"><div class="modal"><h3 style="margin-top:0">Pilih cara verifikasi</h3>
+  <button class="btn gold" style="margin-bottom:8px" onclick="App._choose('WAJAH')">📷 Scan Wajah</button>
+  <button class="btn gold" style="margin-bottom:8px" onclick="App._choose('SIDIK_JARI')">👆 Sidik Jari / Face ID</button>
+  <button class="btn light" onclick="App._choose(null)">Batal</button></div></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* =====================================================================
+   KONFIGURASI — TEMPEL URL WEB APP GOOGLE APPS SCRIPT DI BAWAH INI
+   ===================================================================== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbwYq2dtxFi06cq4QBNoU6s0N-CLJkyvpjoeCszk5SzZAKWQAuicA9tqW3tUnQTlq3_u/exec';
+
+const FACE_LIB = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js';
+const FACE_MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
+
+/* ---------------- Util ---------------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function toast(msg, type = '', ms = 3800) {
+  const t = document.createElement('div'); t.className = 'toast ' + type; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), ms);
+}
+function loading(on, msg) { $('loading').classList.toggle('hidden', !on); if (msg) $('loading-msg').textContent = msg; }
+function fmtJarak(m) { return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
+function jarakMeter(a, b, c, d) {
+  const R = 6371000, r = Math.PI / 180, x = (c - a) * r, y = (d - b) * r;
+  const h = Math.sin(x / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(y / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+const perangkat = () => (navigator.userAgentData?.platform || '') + ' ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 110);
+
+async function api(action, data = {}) {
+  let res;
+  try {
+    res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, ...data }) });
+  } catch (e) { throw new Error('Tidak ada koneksi internet / server tidak terjangkau'); }
+  let j; try { j = await res.json(); } catch (e) { throw new Error('Server tidak merespons dengan benar. Cek URL & deployment Apps Script.'); }
+  if (!j.ok) {
+    if (/login ulang/i.test(j.pesan)) { localStorage.removeItem('absen_token'); }
+    throw new Error(j.pesan || 'Terjadi kesalahan');
+  }
+  return j;
+}
+
+/* ---------------- GPS ---------------- */
+const GPS = {
+  pos: null, watchId: null, listeners: [],
+  start() {
+    if (this.watchId !== null || !navigator.geolocation) return;
+    this.watchId = navigator.geolocation.watchPosition(p => {
+      this.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, t: Date.now() };
+      this.listeners.forEach(f => f(this.pos));
+    }, err => {
+      this.listeners.forEach(f => f(null, err));
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 25000 });
+  },
+  stop() { if (this.watchId !== null) navigator.geolocation.clearWatch(this.watchId); this.watchId = null; },
+  async fresh(maxAgeMs = 15000) {
+    if (this.pos && Date.now() - this.pos.t < maxAgeMs) return this.pos;
+    return new Promise((res, rej) => navigator.geolocation.getCurrentPosition(
+      p => { this.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, t: Date.now() }; res(this.pos); },
+      e => rej(new Error(e.code === 1 ? 'Izin lokasi ditolak. Aktifkan izin lokasi untuk aplikasi ini.' : 'Lokasi GPS tidak didapat. Aktifkan GPS lalu coba lagi.')),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 25000 }));
+  }
+};
+
+/* ---------------- WAJAH (face-api) ---------------- */
+const Face = {
+  ready: false, stream: null, cancelled: false,
+  async load() {
+    if (this.ready) return;
+    loading(true, 'Menyiapkan pengenal wajah… (pertama kali ±10 detik)');
+    try {
+      if (!window.faceapi) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = FACE_LIB; s.onload = res; s.onerror = () => rej(new Error('Gagal memuat pengenal wajah. Cek internet.')); document.head.appendChild(s); });
+      await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODELS);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODELS);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODELS);
+      this.ready = true;
+    } finally { loading(false); }
+  },
+  async open() {
+    await this.load();
+    this.cancelled = false;
+    $('cam').classList.remove('hidden');
+    this.msg('Menyiapkan kamera…');
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    } catch (e) { this.close(); throw new Error('Kamera tidak bisa dibuka. Izinkan akses kamera.'); }
+    const v = $('cam-video'); v.srcObject = this.stream; await v.play();
+    await sleep(400);
+  },
+  close() {
+    $('cam').classList.add('hidden');
+    if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+    this.stream = null;
+  },
+  cancel() { this.cancelled = true; this.close(); },
+  msg(t, ring) { $('cam-msg').textContent = t; $('cam-ring').className = 'ring ' + (ring || ''); },
+  opts() { return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }); },
+  ear(eye) { const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y); return (d(eye[1], eye[5]) + d(eye[2], eye[4])) / (2 * d(eye[0], eye[3])); },
+  snapshot() {
+    const v = $('cam-video'), c = document.createElement('canvas');
+    const w = 480, h = Math.round(w * v.videoHeight / v.videoWidth);
+    c.width = w; c.height = h; c.getContext('2d').drawImage(v, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', 0.72);
+  },
+  async detectFull() {
+    const r = await faceapi.detectSingleFace($('cam-video'), this.opts()).withFaceLandmarks().withFaceDescriptor();
+    return r && r.detection.score > 0.6 ? r : null;
+  },
+  /** Scan untuk absen: deteksi wajah + (opsional) kedip, lalu ambil descriptor */
+  async scan(wajibKedip) {
+    await this.open();
+    const v = $('cam-video');
+    let state = 'cari', openEar = 0, blink = !wajibKedip, t0 = Date.now();
+    try {
+      while (!this.cancelled) {
+        if (Date.now() - t0 > 45000) throw new Error('Waktu scan habis. Coba lagi di tempat yang lebih terang.');
+        const r = await faceapi.detectSingleFace(v, this.opts()).withFaceLandmarks();
+        if (!r) { this.msg('Arahkan wajah ke dalam lingkaran'); state = 'cari'; await sleep(80); continue; }
+        const lm = r.landmarks, e = (this.ear(lm.getLeftEye()) + this.ear(lm.getRightEye())) / 2;
+        if (!blink) {
+          this.msg('👁️ Kedipkan mata perlahan', 'warn');
+          openEar = Math.max(openEar * 0.995, e);
+          if (state !== 'tutup' && openEar > 0.18 && e < openEar * 0.65) state = 'tutup';
+          else if (state === 'tutup' && e > openEar * 0.85) { blink = true; this.msg('Tahan… memverifikasi', 'ok'); await sleep(250); }
+          await sleep(40); continue;
+        }
+        this.msg('Tahan… memverifikasi', 'ok');
+        const full = await this.detectFull();
+        if (!full) { await sleep(80); continue; }
+        const foto = this.snapshot();
+        return { descriptor: Array.from(full.descriptor).map(x => Math.round(x * 1e6) / 1e6), foto, kedip: wajibKedip ? blink : false };
+      }
+      throw new Error('Dibatalkan');
+    } finally { this.close(); }
+  },
+  /** Pendaftaran: ambil 5 sampel wajah */
+  async enroll() {
+    await this.open();
+    const out = []; let foto = null; const t0 = Date.now();
+    try {
+      while (!this.cancelled && out.length < 5) {
+        if (Date.now() - t0 > 60000) throw new Error('Waktu habis. Coba lagi di tempat terang.');
+        const r = await this.detectFull();
+        if (!r) { this.msg('Arahkan wajah ke dalam lingkaran, tempat terang'); await sleep(120); continue; }
+        out.push(Array.from(r.descriptor).map(x => Math.round(x * 1e6) / 1e6));
+        if (!foto) foto = this.snapshot();
+        this.msg('Merekam wajah… ' + out.length + '/5  (gerakkan kepala sedikit)', 'ok');
+        await sleep(450);
+      }
+      if (this.cancelled) throw new Error('Dibatalkan');
+      return { descriptors: out, foto };
+    } finally { this.close(); }
+  }
+};
+
+/* ---------------- SIDIK JARI / FACE ID (WebAuthn) ---------------- */
+const Bio = {
+  async supported() {
+    try { return !!window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); } catch (e) { return false; }
+  },
+  async register(token, perusahaan) {
+    const c = await api('tantangan', { token });
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: unb64u(c.challenge), rp: { name: perusahaan || 'Absensi' },
+      user: { id: unb64u(c.userId), name: c.nik, displayName: c.nama },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+      timeout: 60000, attestation: 'none' } });
+    return { credentialId: b64u(cred.rawId), clientDataJSON: b64u(cred.response.clientDataJSON), perangkat: perangkat() };
+  },
+  async verify(token, credentialId) {
+    const c = await api('tantangan', { token });
+    const a = await navigator.credentials.get({ publicKey: {
+      challenge: unb64u(c.challenge), timeout: 60000, userVerification: 'required',
+      allowCredentials: [{ type: 'public-key', id: unb64u(credentialId), transports: ['internal'] }] } });
+    return { credentialId: b64u(a.rawId), clientDataJSON: b64u(a.response.clientDataJSON), authenticatorData: b64u(a.response.authenticatorData) };
+  }
+};
+
+/* ---------------- APLIKASI ---------------- */
+const App = {
+  token: localStorage.getItem('absen_token'),
+  adminToken: sessionStorage.getItem('absen_admin'),
+  p: null, offset: 0, bioOk: false, maps: {}, layers: {}, adm: null, editMarker: null,
+
+  show(name) {
+    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+    $('scr-' + name).classList.remove('hidden');
+    window.scrollTo(0, 0);
+    Object.values(this.maps).forEach(m => setTimeout(() => m.invalidateSize(), 60));
+  },
+
+  async start() {
+    if (!API_URL || API_URL.includes('PASTE_URL')) return this.show('setup');
+    if (this.adminToken && location.hash === '#admin') return this.openAdmin();
+    if (this.token) return this.home();
+    this.show('login');
+    api('info').then(i => $('login-perusahaan').textContent = i.perusahaan || '').catch(() => {});
+  },
+
+  async login() {
+    const nik = $('in-nik').value.trim(), pin = $('in-pin').value.trim();
+    if (!nik || !pin) return toast('Isi NIK dan PIN', 'bad');
+    loading(true, 'Masuk…');
+    try {
+      const r = await api('login', { nik, pin });
+      this.token = r.token; localStorage.setItem('absen_token', r.token);
+      $('in-pin').value = '';
+      await this.home();
+    } catch (e) { toast(e.message, 'bad'); } finally { loading(false); }
+  },
+
+  logout() { localStorage.removeItem('absen_token'); this.token = null; GPS.stop(); this.show('login'); },
+
+  async home() {
+    this.show('home');
+    loading(true, 'Memuat data…');
+    try {
+      this.p = await api('profil', { token: this.token });
+    } catch (e) {
+      loading(false); toast(e.message, 'bad');
+      if (!localStorage.getItem('absen_token')) { this.token = null; this.show('login'); }
+      return;
+    }
+    loading(false);
+    const p = this.p;
+    this.offset = p.waktuServer - Date.now();
+    $('h-perusahaan').textContent = p.perusahaan;
+    $('h-nama').textContent = p.karyawan.nama;
+    $('h-jabatan').textContent = (p.karyawan.jabatan || '') + ' · NIK ' + p.karyawan.nik;
+    $('jadwal').textContent = (p.jadwal.nama ? p.jadwal.nama + ' · ' : 'Jadwal ') + p.jadwal.masuk + ' – ' + p.jadwal.pulang;
+    const h = p.hariIni;
+    $('st-masuk').textContent = h?.masuk || '--:--';
+    $('st-pulang').textContent = h?.pulang || '--:--';
+    let ket = '';
+    if (h?.terlambat > 0) ket += `<span class="pill warn">Terlambat ${h.terlambat} menit</span> `;
+    if (h?.lembur > 0) ket += `<span class="pill ok">Lembur ${h.lembur} jam</span>`;
+    $('st-ket').innerHTML = ket;
+
+    // biometrik
+    this.bioOk = await Bio.supported();
+    const m = p.metode;
+    const needW = (m === 'WAJAH' || m === 'WAJAH_DAN_SIDIK_JARI') && !p.wajahTerdaftar;
+    const needJ = (m === 'SIDIK_JARI' || m === 'WAJAH_DAN_SIDIK_JARI') && !p.sidikJariTerdaftar;
+    const salah = m === 'SALAH_SATU';
+    const showW = needW || (salah && !p.wajahTerdaftar);
+    const showJ = needJ || (salah && !p.sidikJariTerdaftar && this.bioOk);
+    const anyReady = salah ? (p.wajahTerdaftar || p.sidikJariTerdaftar) : !(needW || needJ);
+    $('card-reg').classList.toggle('hidden', !(showW || showJ));
+    $('btn-reg-wajah').classList.toggle('hidden', !showW);
+    $('btn-reg-jari').classList.toggle('hidden', !showJ || !this.bioOk);
+    $('reg-jari-na').classList.toggle('hidden', this.bioOk || !(needJ));
+    this.readyBio = anyReady;
+    $('card-reg').querySelector('b').textContent = anyReady ? 'Tambah cara verifikasi (opsional)' : 'Daftarkan biometrik Anda';
+
+    this.renderMap('map-home', p.lokasi);
+    GPS.listeners = [(pos, err) => this.updateLoc(pos, err)];
+    GPS.start();
+    if (GPS.pos) this.updateLoc(GPS.pos);
+    this.updateButton();
+    clearInterval(this._clk);
+    this._clk = setInterval(() => this.tick(), 1000); this.tick();
+  },
+
+  tick() {
+    const d = new Date(Date.now() + this.offset);
+    $('clock').textContent = d.toLocaleTimeString('id-ID', { hour12: false, timeZone: 'Asia/Jakarta' }).replace(/\./g, ':');
+    $('today').textContent = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
+  },
+
+  updateButton() {
+    const b = $('btn-absen'), h = this.p?.hariIni;
+    b.className = 'btn big';
+    if (!this.readyBio) { b.disabled = true; b.textContent = 'Daftarkan biometrik dulu'; return; }
+    b.disabled = false;
+    if (!h || !h.masuk) { b.textContent = '➡️  ABSEN MASUK'; b.classList.add('ok'); b.dataset.jenis = 'MASUK'; }
+    else if (!h.pulang) { b.textContent = '⬅️  ABSEN PULANG'; b.classList.add('red'); b.dataset.jenis = 'PULANG'; }
+    else { b.textContent = '🔁  Perbarui Jam Pulang'; b.classList.add('light'); b.dataset.jenis = 'PULANG'; }
+  },
+
+  nearest(pos) {
+    let best = null;
+    (this.p?.lokasi || []).forEach(l => {
+      const d = jarakMeter(pos.lat, pos.lng, l.lat, l.lng), inside = d <= l.radius;
+      if (!best || (inside && !best.inside) || (inside === best.inside && d < best.d)) best = { l, d, inside };
+    });
+    return best;
+  },
+
+  updateLoc(pos, err) {
+    const dot = $('loc-dot');
+    if (!pos) {
+      dot.className = 'dot bad'; $('loc-title').textContent = 'Lokasi tidak terbaca';
+      $('loc-sub').textContent = err?.code === 1 ? 'Izin lokasi ditolak — aktifkan di pengaturan browser' : 'Aktifkan GPS lalu buka ulang aplikasi';
+      return;
+    }
+    const n = this.nearest(pos), accBad = pos.acc > (this.p?.maksAkurasi || 100);
+    if (!n) { dot.className = 'dot bad'; $('loc-title').textContent = 'Belum ada lokasi absen'; $('loc-sub').textContent = 'Hubungi admin untuk mengatur lokasi'; }
+    else if (accBad) { dot.className = 'dot wait'; $('loc-title').textContent = 'Menunggu GPS akurat…'; $('loc-sub').textContent = `Akurasi ±${Math.round(pos.acc)} m · ke area terbuka`; }
+    else if (n.inside) { dot.className = 'dot ok'; $('loc-title').textContent = 'Di dalam area: ' + n.l.nama; $('loc-sub').textContent = `${fmtJarak(n.d)} dari titik · radius ${n.l.radius} m · akurasi ±${Math.round(pos.acc)} m`; }
+    else { dot.className = 'dot bad'; $('loc-title').textContent = 'Di luar area absen'; $('loc-sub').textContent = `${fmtJarak(n.d)} dari ${n.l.nama} (maks ${n.l.radius} m)`; }
+    const L_ = this.layers['map-home'];
+    if (L_) {
+      if (!L_.me) L_.me = L.circleMarker([pos.lat, pos.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#2F80ED', fillOpacity: 1 }).addTo(this.maps['map-home']);
+      else L_.me.setLatLng([pos.lat, pos.lng]);
+      if (!L_.fitted) { L_.fitted = true; const b = L.latLngBounds([[pos.lat, pos.lng]]); if (n) b.extend([n.l.lat, n.l.lng]); this.maps['map-home'].fitBounds(b.pad(0.6), { maxZoom: 17 }); }
+    }
+  },
+
+  renderMap(id, lokasi, opts = {}) {
+    if (!window.L) return;
+    let m = this.maps[id];
+    if (!m) {
+      m = L.map(id, { zoomControl: !!opts.zoom, attributionControl: true }).setView([-6.9, 107.6], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
+      this.maps[id] = m; this.layers[id] = { group: L.layerGroup().addTo(m) };
+      if (opts.onClick) m.on('click', opts.onClick);
+    }
+    const g = this.layers[id].group; g.clearLayers();
+    const pts = [];
+    (lokasi || []).forEach(l => {
+      L.circle([l.lat, l.lng], { radius: l.radius, color: l.aktif === false ? '#999' : '#C9A227', fillOpacity: .15, weight: 2 }).addTo(g).bindTooltip(l.nama);
+      L.circleMarker([l.lat, l.lng], { radius: 4, color: '#1F2A44', fillOpacity: 1 }).addTo(g);
+      pts.push([l.lat, l.lng]);
+    });
+    if (pts.length && opts.fit !== false) m.fitBounds(L.latLngBounds(pts).pad(0.5), { maxZoom: 17 });
+    setTimeout(() => m.invalidateSize(), 80);
+  },
+
+  async daftarWajah() {
+    try {
+      const r = await Face.enroll();
+      loading(true, 'Menyimpan data wajah…');
+      await api('daftarWajah', { token: this.token, descriptors: r.descriptors, foto: r.foto });
+      toast('Wajah berhasil didaftarkan ✅', 'ok');
+      await this.home();
+    } catch (e) { if (e.message !== 'Dibatalkan') toast(e.message, 'bad'); } finally { loading(false); }
+  },
+
+  async daftarSidikJari() {
+    try {
+      const r = await Bio.register(this.token, this.p?.perusahaan);
+      loading(true, 'Menyimpan…');
+      await api('daftarSidikJari', { token: this.token, ...r });
+      toast('Sidik jari / Face ID terdaftar ✅', 'ok');
+      await this.home();
+    } catch (e) {
+      toast(e.name === 'NotAllowedError' ? 'Dibatalkan atau waktu habis' : e.message, 'bad');
+    } finally { loading(false); }
+  },
+
+  choose() {
+    return new Promise(res => { this._choose = v => { $('chooser').classList.add('hidden'); res(v); }; $('chooser').classList.remove('hidden'); });
+  },
+
+  async absen() {
+    const jenis = $('btn-absen').dataset.jenis || 'MASUK';
+    const p = this.p;
+    try {
+      // 1) lokasi
+      loading(true, 'Memastikan lokasi GPS…');
+      let pos = await GPS.fresh();
+      for (let i = 0; i < 6 && pos.acc > p.maksAkurasi; i++) { await sleep(1500); pos = await GPS.fresh(1000); }
+      loading(false);
+      if (pos.acc > p.maksAkurasi) throw new Error(`GPS kurang akurat (±${Math.round(pos.acc)} m). Pindah ke area terbuka.`);
+      const n = this.nearest(pos);
+      if (!n) throw new Error('Belum ada lokasi absen untuk Anda. Hubungi admin.');
+      if (!n.inside) throw new Error(`Anda di luar area absen (${fmtJarak(n.d)} dari ${n.l.nama}).`);
+
+      // 2) verifikasi
+      const body = { token: this.token, jenis, lat: pos.lat, lng: pos.lng, akurasi: pos.acc, perangkat: perangkat() };
+      let cara = p.metode;
+      if (cara === 'SALAH_SATU') {
+        const w = p.wajahTerdaftar, j = p.sidikJariTerdaftar && this.bioOk;
+        cara = w && j ? await this.choose() : (w ? 'WAJAH' : (j ? 'SIDIK_JARI' : null));
+        if (!cara) return;
+      }
+      if (cara === 'SIDIK_JARI' || cara === 'WAJAH_DAN_SIDIK_JARI') {
+        if (!this.bioOk) throw new Error('HP ini tidak mendukung sidik jari untuk web.');
+        try { body.webauthn = await Bio.verify(this.token, p.credentialId); }
+        catch (e) { throw new Error(e.name === 'NotAllowedError' ? 'Verifikasi sidik jari dibatalkan / gagal' : e.message); }
+      }
+      if (cara === 'WAJAH' || cara === 'WAJAH_DAN_SIDIK_JARI') {
+        const f = await Face.scan(p.wajibKedip);
+        body.descriptor = f.descriptor; body.foto = f.foto; body.kedip = f.kedip;
+      }
+
+      // 3) kirim
+      loading(true, 'Mengirim absensi…');
+      const r = await api('absen', body);
+      loading(false);
+      if (navigator.vibrate) navigator.vibrate(120);
+      $('sk-judul').textContent = r.pesan;
+      let det = `📍 ${esc(r.lokasi)} (${r.jarak} m)<br>🕘 ${esc(r.waktu)} WIB`;
+      if (r.terlambat > 0 && jenis === 'MASUK') det += `<br><span class="pill warn" style="margin-top:8px">Terlambat ${r.terlambat} menit</span>`;
+      if (r.lembur > 0) det += `<br><span class="pill ok" style="margin-top:8px">Lembur terhitung ${r.lembur} jam</span>`;
+      $('sk-detail').innerHTML = det;
+      this.show('sukses');
+    } catch (e) {
+      loading(false);
+      if (e.message !== 'Dibatalkan') toast(e.message, 'bad', 5500);
+    }
+  },
+
+  async riwayat() {
+    loading(true, 'Memuat riwayat…');
+    try {
+      const r = await api('riwayat', { token: this.token });
+      const s = r.ringkasan;
+      $('rw-periode').textContent = 'Periode ' + s.mulai + ' s/d ' + s.selesai;
+      $('rw-hadir').textContent = s.hadir + ' hr';
+      $('rw-telat').textContent = s.terlambatMenit + ' mnt';
+      $('rw-lembur').textContent = (Math.round(s.lemburJam * 100) / 100) + ' jam';
+      $('rw-body').innerHTML = r.riwayat.map(x => {
+        const d = new Date(x.tanggal + 'T00:00:00');
+        let k = [];
+        if (x.terlambat > 0) k.push(`<span class="pill warn">telat ${x.terlambat}m</span>`);
+        if (x.lembur > 0) k.push(`<span class="pill ${/MENUNGGU/.test(x.status) ? 'mut' : 'ok'}">lembur ${x.lembur}j</span>`);
+        if (x.jenisHari && x.jenisHari !== 'HARI KERJA') k.push(`<span class="pill mut">libur</span>`);
+        return `<tr><td>${d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}</td><td>${esc(x.masuk)}</td><td>${esc(x.pulang)}</td><td>${k.join(' ')}</td></tr>`;
+      }).join('') || '<tr><td colspan="4" class="muted center">Belum ada data</td></tr>';
+      this.show('riwayat');
+    } catch (e) { toast(e.message, 'bad'); } finally { loading(false); }
+  },
+
+  /* ---------------- ADMIN ---------------- */
+  async adminLogin() {
+    loading(true, 'Masuk…');
+    try {
+      const r = await api('adminLogin', { pin: $('in-admin-pin').value.trim() });
+      this.adminToken = r.token; sessionStorage.setItem('absen_admin', r.token);
+      $('in-admin-pin').value = '';
+      location.hash = 'admin';
+      await this.openAdmin();
+    } catch (e) { toast(e.message, 'bad'); } finally { loading(false); }
+  },
+
+  adminLogout() { sessionStorage.removeItem('absen_admin'); this.adminToken = null; location.hash = ''; this.start(); },
+
+  async openAdmin() {
+    this.show('admin');
+    loading(true, 'Memuat data admin…');
+    try {
+      this.adm = await api('adminData', { token: this.adminToken });
+    } catch (e) {
+      loading(false); toast(e.message, 'bad');
+      if (/ditolak|login|Sesi/i.test(e.message)) this.adminLogout();
+      return;
+    }
+    loading(false);
+    $('ad-perusahaan').textContent = this.adm.perusahaan;
+    this.renderMap('map-admin', this.adm.lokasi, { zoom: true, onClick: ev => this.setTitik(ev.latlng.lat, ev.latlng.lng) });
+    this.renderLokasi(); this.renderKaryawan(); this.renderHari();
+  },
+
+  tab(t) {
+    ['lokasi', 'karyawan', 'hari'].forEach(x => $('tab-' + x).classList.toggle('hidden', x !== t));
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+    if (t === 'lokasi') setTimeout(() => this.maps['map-admin']?.invalidateSize(), 60);
+  },
+
+  setTitik(lat, lng, zoom) {
+    const m = this.maps['map-admin'], r = Number($('lk-radius').value) || 100;
+    this._titik = { lat, lng };
+    if (!this.editMarker) {
+      this.editMarker = L.marker([lat, lng], { draggable: true }).addTo(m);
+      this.editCircle = L.circle([lat, lng], { radius: r, color: '#1F2A44', dashArray: '6 6', fillOpacity: .12 }).addTo(m);
+      this.editMarker.on('drag', e => { const p = e.target.getLatLng(); this._titik = { lat: p.lat, lng: p.lng }; this.editCircle.setLatLng(p); this.updKoord(); });
+    } else { this.editMarker.setLatLng([lat, lng]); this.editCircle.setLatLng([lat, lng]); }
+    if (zoom) m.setView([lat, lng], 17);
+    this.updKoord();
+  },
+  updKoord() { $('lk-koord').value = this._titik.lat.toFixed(6) + ', ' + this._titik.lng.toFixed(6); },
+  setRadius(v) {
+    v = Math.max(10, Math.min(5000, Number(v) || 10));
+    $('lk-radius').value = v; $('lk-radius-r').value = Math.min(v, 1000);
+    if (this.editCircle) this.editCircle.setRadius(v);
+  },
+  tempelKoordinat() {
+    const m = $('lk-koord').value.match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);
+    if (!m) return toast('Format koordinat: -6.8875, 107.5367', 'bad');
+    this.setTitik(Number(m[1]), Number(m[2]), true);
+  },
+  async pakaiLokasiSaya() {
+    loading(true, 'Mengambil lokasi…');
+    try {
+      let pos = await GPS.fresh(0);
+      for (let i = 0; i < 4 && pos.acc > 30; i++) { await sleep(1500); pos = await GPS.fresh(1000); }
+      this.setTitik(pos.lat, pos.lng, true);
+      toast(`Titik diambil (akurasi ±${Math.round(pos.acc)} m)`, 'ok');
+    } catch (e) { toast(e.message, 'bad'); } finally { loading(false); }
+  },
+  resetFormLokasi() {
+    $('lk-id').value = ''; $('lk-nama').value = ''; $('lk-koord').value = ''; this.setRadius(100); $('lk-aktif').checked = true;
+    $('lk-judul').textContent = 'Tambah Lokasi Absen'; $('lk-batal').classList.add('hidden');
+    if (this.editMarker) { this.editMarker.remove(); this.editCircle.remove(); this.editMarker = null; this._titik = null; }
+  },
+  editLokasi(id) {
+    const l = this.adm.lokasi.find(x => x.id === id); if (!l) return;
+    $('lk-id').value = l.id; $('lk-nama').value = l.nama; $('lk-aktif').checked = l.aktif;
+    this.setRadius(l.radius); this.setTitik(l.lat, l.lng, true);
+    $('lk-judul').textContent = 'Ubah Lokasi: ' + l.nama; $('lk-batal').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+  async simpanLokasi() {
+    if (!this._titik) return toast('Tentukan titik lokasi di peta dulu', 'bad');
+    const lokasi = { id: $('lk-id').value || null, nama: $('lk-nama').value.trim(), lat: this._titik.lat, lng: this._titik.lng, radius: Number($('lk-radius').value), aktif: $('lk-aktif').checked };
+    if (!lokasi.nama) return toast('Isi nama lokasi', 'bad');
+    loading(true, 'Menyimpan…');
+    try { await api('adminSimpanLokasi', { token: this.adminToken, lokasi }); toast('Lokasi disimpan ✅', 'ok'); this.resetFormLokasi(); await this.openAdmin(); }
+    catch (e) { toast(e.message, 'bad'); } finally { loading(false); }
+  },
+  async hapusLokasi(id) {
+    if (!confirm('Hapus lokasi ini?')) return;
+    loading(true, 'Menghapus…');
+    try { await api('adminHapusLokasi', { token: this.adminToken, id }); toast('Lokasi dihapus', 'ok'); await this.openAdmin(); }
+    catch (e) { toast(e.message, 'bad'); } finally { loading(false); }
+  },
+  renderLokasi() {
+    const l = this.adm.lokasi;
+    $('lk-list').innerHTML = l.length ? l.map(x => `<div class="list-item"><div><b>${esc(x.nama)}</b> <span class="pill ${x.aktif ? 'ok' : 'mut'}">${x.aktif ? 'aktif' : 'nonaktif'}</span><div class="muted">ID ${esc(x.id)} · radius ${x.radius} m<br>${x.lat.toFixed(5)}, ${x.lng.toFixed(5)}</div></div>
+      <div style="display:flex;gap:6px"><button class="btn small light" onclick="App.editLokasi('${esc(x.id)}')">Ubah</button><button class="btn small red" onclick="App.hapusLokasi('${esc(x.id)}')">Hapus</button></div></div>`).join('')
+      : '<p class="muted">Belum ada lokasi. Tambahkan di atas.</p>';
+  },
+  renderKaryawan() {
+    const lok = this.adm.lokasi, sf = this.adm.shift || [];
+    const shiftOpts = cur => `<option value="" ${!cur ? 'selected' : ''}>Jam normal (Pengaturan)</option>` +
+      sf.map(x => `<option value="${esc(x.kode)}" ${String(cur).toUpperCase() === x.kode ? 'selected' : ''}>${esc(x.nama)} · ${esc(x.masuk)}–${esc(x.pulang)}</option>`).join('');
+    $('sf-body').innerHTML = sf.map(x => `<div class="sf-row" data-kode="${esc(x.kode)}" style="background:#F6F7FB;border-radius:12px;padding:10px;margin-bottom:8px">
+      <label>Nama shift (kode ${esc(x.kode)})</label><input class="sf-nama" value="${esc(x.nama)}" style="margin:4px 0 8px;padding:9px">
+      <div class="grid2" style="margin:0"><div><label>Jam masuk</label><input class="sf-masuk" type="time" value="${esc(x.masuk)}" style="margin:4px 0 0;padding:9px"></div>
+      <div><label>Jam pulang</label><input class="sf-pulang" type="time" value="${esc(x.pulang)}" style="margin:4px 0 0;padding:9px"></div></div></div>`).join('')
+      || '<p class="muted">Belum ada shift. Jalankan menu Setup Awal di spreadsheet.</p>';
+    $('kr-list').innerHTML = this.adm.karyawan.map(k => {
+      const opts = ['SEMUA', ...lok.map(l => l.id)].map(id => `<option value="${esc(id)}" ${String(k.lokasi).toUpperCase() === String(id).toUpperCase() ? 'selected' : ''}>${id === 'SEMUA' ? 'Semua lokasi' : esc(lok.find(l => l.id === id).nama)}</option>`).join('');
+      const custom = !['SEMUA', ...lok.map(l => l.id.toUpperCase())].includes(String(k.lokasi).toUpperCase()) ? `<option selected>${esc(k.lokasi)}</option>` : '';
+      return `<div class="list-item" style="display:block"><div style="display:flex;justify-content:space-between"><div><b>${esc(k.nama)}</b><div class="muted">NIK ${esc(k.nik)} · ${esc(k.jabatan || '')} · ${esc(k.status)}</div></div>
+        <div><span class="pill ${k.wajah ? 'ok' : 'mut'}">wajah</span> <span class="pill ${k.sidikJari ? 'ok' : 'mut'}">jari</span></div></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:8px"><label style="min-width:52px">Shift</label><select style="margin:0;padding:9px" onchange="App.setShiftKar('${esc(k.nik)}',this.value)">${shiftOpts(k.shift)}</select></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px"><label style="min-width:52px">Lokasi</label><select style="margin:0;padding:9px" onchange="App.setLokKar('${esc(k.nik)}',this.value)">${custom}${opts}</select></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px">
+        <button class="btn small light" style="white-space:nowrap" onclick="App.resetBio('${esc(k.nik)}')">Reset biometrik</button></div></div>`;
+    }).join('') || '<p class="muted">Belum ada karyawan di sheet Karyawan.</p>';
+  },
+  async setLokKar(nik, lokasi) {
+    try { await api('adminSetLokasiKaryawan', { token: this.adminToken, nik, lokasi }); toast('Lokasi karyawan diperbarui', 'ok'); }
+    catch (e) { toast(e.message, 'bad'); }
+  },
+  async setShiftKar(nik, shift) {
+    try { await api('adminSetShiftKaryawan', { token: this.adminToken, nik, shift }); toast('Shift karyawan diperbarui', 'ok'); const k = this.adm.karyawan.find(x => x.nik === nik); if (k) k.shift = shift; }
+    catch (e) { toast(e.message, 'bad'); }
+  },
+  async simpanShift() {
+    const shift = [...document.querySelectorAll('#sf-body .sf-row')].map(tr => ({
+      kode: tr.dataset.kode, nama: tr.querySelector('.sf-nama').value.trim(),
+      masuk: tr.querySelector('.sf-masuk').value, pulang: tr.querySelector('.sf-pulang').value }));
+    if (shift.some(x => !x.masuk || !x.pulang)) return toast('Jam masuk & pulang wajib diisi', 'bad');
+    loading(true, 'Menyimpan jam shift…');
+    try { await api('adminSimpanShift', { token: this.adminToken, shift }); toast('Jam shift disimpan ✅', 'ok'); await this.openAdmin(); this.tab('karyawan'); }
+    catch (e) { toast(e.message, 'bad'); } finally { loading(false); }
+  },
+  async resetBio(nik) {
+    if (!confirm('Reset data wajah & sidik jari NIK ' + nik + '? Karyawan harus mendaftar ulang.')) return;
+    loading(true, 'Mereset…');
+    try { await api('adminResetBiometrik', { token: this.adminToken, nik, jenis: 'SEMUA' }); toast('Biometrik direset', 'ok'); await this.openAdmin(); }
+    catch (e) { toast(e.message, 'bad'); } finally { loading(false); }
+  },
+  renderHari() {
+    const h = this.adm.hariIni;
+    $('hr-kosong').classList.toggle('hidden', h.length > 0);
+    $('hr-body').innerHTML = h.map(x => `<tr><td>${esc(x.nama)}<div class="muted">${esc(x.shift || '')} ${esc(x.lokasi || '')}</div></td><td>${esc(x.masuk)}</td><td>${esc(x.pulang)}</td><td>${x.terlambat > 0 ? `<span class="pill warn">${x.terlambat}m</span>` : '-'}</td></tr>`).join('');
+  }
+};
+
+let _hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { _hiddenAt = Date.now(); return; }
+  // segarkan data jika aplikasi dibuka lagi setelah > 2 menit (bukan saat prompt sidik jari/kamera)
+  if (Date.now() - _hiddenAt > 120000 && App.p && !$('scr-home').classList.contains('hidden') && $('loading').classList.contains('hidden') && $('cam').classList.contains('hidden')) App.home();
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+App.start();
+</script>
+</body>
+</html>
