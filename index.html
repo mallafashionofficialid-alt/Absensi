@@ -577,17 +577,22 @@ const App = {
   },
 
   async daftarWajah() {
+    if (this._busy) return;            // cegah ketukan ganda
+    this._busy = true;
     try {
       const r = await Face.enroll();
       loading(true, 'Menyimpan data wajah…');
       await api('daftarWajah', { token: this.token, descriptors: r.descriptors, foto: r.foto });
       toast('Wajah berhasil didaftarkan ✅', 'ok');
       await this.home();
-    } catch (e) { if (e.message !== 'Dibatalkan') toast(e.message, 'bad'); } finally { loading(false); }
+    } catch (e) { if (e.message !== 'Dibatalkan') toast(e.message, 'bad'); } finally { loading(false); this._busy = false; }
   },
 
   async daftarSidikJari() {
+    if (this._busy) return;            // cegah ketukan ganda (tantangan bisa saling menimpa)
+    this._busy = true;
     try {
+      loading(true, 'Menyiapkan verifikasi sidik jari…');
       const r = await Bio.register(this.token, this.p?.perusahaan);
       loading(true, 'Menyimpan…');
       await api('daftarSidikJari', { token: this.token, ...r });
@@ -595,7 +600,7 @@ const App = {
       await this.home();
     } catch (e) {
       toast(e.name === 'NotAllowedError' ? 'Dibatalkan atau waktu habis' : e.message, 'bad');
-    } finally { loading(false); }
+    } finally { loading(false); this._busy = false; }
   },
 
   choose() {
@@ -603,6 +608,8 @@ const App = {
   },
 
   async absen() {
+    if (this._busy) return;            // cegah ketukan ganda
+    this._busy = true;
     const jenis = $('btn-absen').dataset.jenis || 'MASUK';
     const p = this.p;
     try {
@@ -648,7 +655,7 @@ const App = {
     } catch (e) {
       loading(false);
       if (e.message !== 'Dibatalkan') toast(e.message, 'bad', 5500);
-    }
+    } finally { this._busy = false; }
   },
 
   async riwayat() {
